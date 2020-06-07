@@ -134,13 +134,18 @@ pub const Client = struct {
 
             std.debug.warn("sending {} bytes\n", .{file_bytes});
 
-            const written_bytes = try self.connection.file.write(&file_buffer);
+            const written_bytes = self.connection.file.write(&file_buffer) catch |err| {
+                std.debug.warn("Tried sending data to client {}: {}\n", .{ self.connection.address, err });
+                break;
+            };
+
             if (written_bytes == 0) {
                 std.debug.warn("broke?\n", .{});
                 self.deinit();
                 break;
             }
 
+            // todo: make this integrate as timefd and event loop
             std.time.sleep(1 * std.time.ns_per_s);
         }
     }
