@@ -38,53 +38,54 @@ pub const Client = struct {
 
     pub fn handle(self: *@This()) !void {
         std.debug.warn("got client!\n", .{});
-        while (true) {
-            var buf: [512]u8 = undefined;
-            const read_bytes = try self.connection.file.read(&buf);
-            if (read_bytes == 0) {
-                // likely close connection (got it from SIGINT'ing curl)
-                self.deinit();
-                break;
-            }
-
-            const msg = buf[0..read_bytes];
-            var lines = std.mem.split(msg, "\r\n");
-            const http_header = lines.next().?;
-            var header_it = http_header.split(" ");
-
-            const method = header_it.next() orelse {
-                self.invalidHTTP("Invalid HTTP header");
-                break;
-            };
-
-            if (!std.mem.eql(u8, method, "GET")) {
-                self.sendResponse(404, "invalid method (only GET accepted)");
-                self.deinit();
-                break;
-            }
-
-            const path = header_it.next() orelse {
-                self.invalidHTTP("Invalid HTTP header");
-                break;
-            };
-
-            if (!std.mem.eql(u8, path, "/")) {
-                self.sendResponse(404, "invalid path (only / accepted)");
-                self.deinit();
-                break;
-            }
-
-            const http_flag = header_it.next() orelse {
-                self.invalidHTTP("Invalid HTTP header");
-                break;
-            };
-
-            if (!std.mem.eql(u8, http_flag, "HTTP/1.1")) {
-                self.invalidHTTP("Invalid HTTP version (only 1.1 accepted)");
-                break;
-            }
-
-            std.debug.warn("got msg! '{}'\n", .{msg});
+        var buf: [512]u8 = undefined;
+        const read_bytes = try self.connection.file.read(&buf);
+        if (read_bytes == 0) {
+            // likely close connection (got it from SIGINT'ing curl)
+            self.deinit();
+            break;
         }
+
+        const msg = buf[0..read_bytes];
+        var lines = std.mem.split(msg, "\r\n");
+        const http_header = lines.next().?;
+        var header_it = http_header.split(" ");
+
+        const method = header_it.next() orelse {
+            self.invalidHTTP("Invalid HTTP header");
+            break;
+        };
+
+        if (!std.mem.eql(u8, method, "GET")) {
+            self.sendResponse(404, "invalid method (only GET accepted)");
+            self.deinit();
+            break;
+        }
+
+        const path = header_it.next() orelse {
+            self.invalidHTTP("Invalid HTTP header");
+            break;
+        };
+
+        if (!std.mem.eql(u8, path, "/")) {
+            self.sendResponse(404, "invalid path (only / accepted)");
+            self.deinit();
+            break;
+        }
+
+        const http_flag = header_it.next() orelse {
+            self.invalidHTTP("Invalid HTTP header");
+            break;
+        };
+
+        if (!std.mem.eql(u8, http_flag, "HTTP/1.1")) {
+            self.invalidHTTP("Invalid HTTP version (only 1.1 accepted)");
+            break;
+        }
+
+        // by now, we have a proper http request we can serve. we don't need
+        // the rest of the message to make our reply
+
+        std.debug.warn("got msg! '{}'\n", .{msg});
     }
 };
