@@ -24,7 +24,9 @@ pub fn main() anyerror!void {
     while (true) {
         var conn = try server.accept();
         var client = try allocator.create(Client);
+        const client_id = try ctx.genClientId();
         client.* = Client{
+            .id = client_id,
             .allocator = allocator,
             .connection = conn,
             .ctx = &ctx,

@@ -2,6 +2,7 @@ const std = @import("std");
 const Context = @import("context.zig").Context;
 
 pub const Client = struct {
+    id: []const u8,
     allocator: *std.mem.Allocator,
     connection: std.net.StreamServer.Connection,
     ctx: *Context,
@@ -10,17 +11,29 @@ pub const Client = struct {
     pub fn deinit(self: *@This()) void {
         std.debug.warn("closing connection with {}\n", .{self.connection.address});
         self.connection.file.close();
+        self.allocator.free(self.id);
         self.allocator.destroy(self);
     }
 
     fn constructReply(self: *@This(), status_code: usize, message: []const u8) ![]const u8 {
-        return try std.fmt.allocPrint(self.allocator, "HTTP/1.1 {}\r\ncontent-type: text/plain\r\ncontent-length: {}\r\n\r\n{}", .{ status_code, message.len, message });
+        return try std.fmt.allocPrint(
+            self.allocator,
+            "HTTP/1.1 {}\r\ncontent-type: text/plain\r\ncontent-length: {}\r\n\r\n{}",
+            .{
+                status_code,
+                message.len,
+                message,
+            },
+        );
     }
 
     fn send(self: *@This(), message: []const u8) !void {
         const sent_bytes = try self.connection.file.write(message);
         if (sent_bytes != message.len) {
-            std.debug.warn("Maybe failed to send message! sent {}, expected {}\n", .{ sent_bytes, message.len });
+            std.debug.warn(
+                "Maybe failed to send message! sent {}, expected {}\n",
+                .{ sent_bytes, message.len },
+            );
         }
     }
 
