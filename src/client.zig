@@ -30,7 +30,10 @@ pub const Client = struct {
     }
 
     fn invalidHTTP(self: *@This(), message: []const u8) void {
-        return self.responseIgnoreError(400, message);
+        self.responseIgnoreError(400, message);
+
+        // if invalid http is given, we should close and free ourselves
+        self.deinit();
     }
 
     pub fn handle(self: *@This()) !void {
@@ -51,21 +54,35 @@ pub const Client = struct {
 
             const method = header_it.next() orelse {
                 self.invalidHTTP("Invalid HTTP header");
-                self.deinit();
                 break;
             };
+
+            if (!std.mem.eql(u8, method, "GET")) {
+                self.sendResponse(404, "invalid method (only GET accepted)");
+                self.deinit();
+                break;
+            }
 
             const path = header_it.next() orelse {
                 self.invalidHTTP("Invalid HTTP header");
-                self.deinit();
                 break;
             };
 
-            const http_flag = header_it.next() orelse {
-                self.invalidHTTP("Invalid HTTP header");
+            if (!std.mem.eql(u8, path, "/")) {
+                self.sendResponse(404, "invalid path (only / accepted)");
                 self.deinit();
                 break;
+            }
+
+            const http_flag = header_it.next() orelse {
+                self.invalidHTTP("Invalid HTTP header");
+                break;
             };
+
+            if (!std.mem.eql(u8, http_flag, "HTTP/1.1")) {
+                self.invalidHTTP("Invalid HTTP version (only 1.1 accepted)");
+                break;
+            }
 
             std.debug.warn("got msg! '{}'\n", .{msg});
         }
