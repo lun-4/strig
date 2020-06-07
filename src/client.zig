@@ -10,7 +10,9 @@ pub const Client = struct {
     pub fn deinit(self: *@This()) void {
         std.debug.warn("closing connection with {}\n", .{self.connection.address});
         self.connection.file.close();
+
         // TODO free itself
+        self.allocator.destroy(self);
     }
 
     pub fn handle(self: *@This()) !void {
