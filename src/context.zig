@@ -19,19 +19,19 @@ pub const Context = struct {
     }
 
     // Caller owns returned memory
-    pub fn genClientId(self: *@This()) []const u8 {
-        var randBytes: [128]u8 = undefined;
+    pub fn genClientId(self: *@This()) ![]const u8 {
+        var randBytes: [32]u8 = undefined;
 
         const seed = @truncate(u64, @bitCast(u128, std.time.nanoTimestamp()));
         var r = std.rand.DefaultPrng.init(seed);
-        r.bytes(&buf);
+        r.random.bytes(&randBytes);
 
-        var res = try std.fmt.allocPrint(self.allocator, "{x}", &randBytes);
+        var res = try std.fmt.allocPrint(self.allocator, "{x}", .{&randBytes});
         return res;
     }
 
     pub fn addClient(self: *@This(), client: *Client) !void {
         std.debug.warn("adding client '{}' => {}\n", .{ client.id, client.connection.address });
-        _ = try self.clients.put(client_id, client);
+        _ = try self.clients.put(client.id, client);
     }
 };
