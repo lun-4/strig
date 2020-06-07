@@ -1,16 +1,15 @@
 const std = @import("std");
 const Context = @import("context.zig").Context;
-const Client = @import("Client.zig").Client;
+const Client = @import("client.zig").Client;
 
 pub const io_mode = .evented;
 
 pub fn main() anyerror!void {
-    std.debug.warn("All your codebase are belong to us.\n", .{});
-    var addr = std.net.Address.parseIp("127.0.0.1", 3000);
-    var server = std.net.StreamServer.init(.{ .listen_address = addr });
+    var addr = try std.net.Address.parseIp("127.0.0.1", 3000);
+    var server = std.net.StreamServer.init(.{.reuse_address});
     defer server.close();
 
-    var arena = std.heap.ArenaAllocator(std.heap.direct_allocator);
+    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
     defer arena.deinit();
     var allocator = &arena.allocator;
 
@@ -20,18 +19,19 @@ pub fn main() anyerror!void {
     var ctx = Context.init(allocator);
     defer ctx.deinit();
 
-    try server.listen();
+    try server.listen(addr);
+    std.debug.warn("listening to clients on {}\n", .{addr});
     while (true) {
         var conn = try server.accept();
         var client = try allocator.create(Client);
         client.* = Client{
             .allocator = allocator,
             .connection = conn,
-            .ctx = ctx,
+            .ctx = &ctx,
             .handle_frame = async client.handle(),
         };
         // TODO deinit client somehow
 
-        try ctx.addClient(conn);
+        try ctx.addClient(client);
     }
 }
