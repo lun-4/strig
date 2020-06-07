@@ -120,6 +120,8 @@ pub const Client = struct {
         try std.os.dup2(self.ctx.root_file.handle, memfd);
 
         var file_copy = std.fs.File{ .handle = memfd };
+        defer file_copy.close();
+
         try file_copy.seekTo(0);
         while (true) {
             const file_bytes = try file_copy.read(&file_buffer);
@@ -141,25 +143,5 @@ pub const Client = struct {
 
             std.time.sleep(1 * std.time.ns_per_s);
         }
-
-        // try to detect when the client closes the connection by reading
-        // from the socket in a loop
-
-        //var loop_buffer: [512]u8 = undefined;
-        //while (true) {
-        //    std.debug.warn("keeping {} in readloop\n", .{self.connection.address});
-
-        //    const loop_bytes = self.connection.file.read(&loop_buffer) catch |err| {
-        //        std.debug.warn("got error in post-exchange loop: {}\n", .{err});
-        //        self.deinit();
-        //        break;
-        //    };
-
-        //    if (loop_bytes == 0) {
-        //        // likely close connection (got it from SIGINT'ing curl)
-        //        self.deinit();
-        //        return;
-        //    }
-        //}
     }
 };
