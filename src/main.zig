@@ -6,7 +6,7 @@ pub const io_mode = .evented;
 
 pub fn main() anyerror!void {
     var addr = try std.net.Address.parseIp("127.0.0.1", 3000);
-    var server = std.net.StreamServer.init(.{.reuse_address});
+    var server = std.net.StreamServer.init(.{ .reuse_address = true });
     defer server.close();
 
     var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
