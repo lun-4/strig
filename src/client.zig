@@ -46,49 +46,50 @@ pub const Client = struct {
         if (read_bytes == 0) {
             // likely close connection (got it from SIGINT'ing curl)
             self.deinit();
-            break;
+            return;
         }
 
         const msg = buf[0..read_bytes];
         var lines = std.mem.split(msg, "\r\n");
         const http_header = lines.next().?;
-        var header_it = http_header.split(" ");
+        var header_it = std.mem.split(http_header, " ");
 
         const method = header_it.next() orelse {
             self.invalidHTTP("Invalid HTTP header");
-            break;
+            return;
         };
 
         if (!std.mem.eql(u8, method, "GET")) {
-            self.sendResponse(404, "invalid method (only GET accepted)");
+            try self.sendResponse(404, "invalid method (only GET accepted)");
             self.deinit();
-            break;
+            return;
         }
 
         const path = header_it.next() orelse {
             self.invalidHTTP("Invalid HTTP header");
-            break;
+            return;
         };
 
         if (!std.mem.eql(u8, path, "/")) {
-            self.sendResponse(404, "invalid path (only / accepted)");
+            try self.sendResponse(404, "invalid path (only / accepted)");
             self.deinit();
-            break;
+            return;
         }
 
         const http_flag = header_it.next() orelse {
             self.invalidHTTP("Invalid HTTP header");
-            break;
+            return;
         };
 
         if (!std.mem.eql(u8, http_flag, "HTTP/1.1")) {
             self.invalidHTTP("Invalid HTTP version (only 1.1 accepted)");
-            break;
+            return;
         }
 
         // by now, we have a proper http request we can serve. we don't need
         // the rest of the message to make our reply
 
         std.debug.warn("got msg! '{}'\n", .{msg});
+        self.deinit();
     }
 };
