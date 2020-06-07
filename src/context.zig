@@ -6,10 +6,12 @@ pub const Clients = std.StringHashMap(*Client);
 pub const Context = struct {
     allocator: *std.mem.Allocator,
     clients: Clients,
+    root_file: std.fs.File,
 
-    pub fn init(allocator: *std.mem.Allocator) @This() {
+    pub fn init(allocator: *std.mem.Allocator, root_file: std.fs.File) @This() {
         return .{
             .allocator = allocator,
+            .root_file = root_file,
             .clients = Clients.init(allocator),
         };
     }

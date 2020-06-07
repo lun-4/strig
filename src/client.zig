@@ -110,28 +110,56 @@ pub const Client = struct {
 
         // send out initial message, the streaming bit is likely managed by
         // Context? more experiments required
-        try self.send("HTTP/1.1 200\r\n");
-        try self.send("content-type: application/ogg\r\n");
-        try self.send("access-control-allow-origin: *\r\n");
-        try self.send("server: strig\r\n\r\n");
+        try self.send("HTTP/1.1 200\r\n" ++
+            "content-type: audio/mp3\r\n" ++
+            "access-control-allow-origin: *\r\n" ++
+            "server: strig\r\n\r\n");
+
+        var file_buffer: [1024 * 1024]u8 = undefined;
+        var memfd = try std.os.memfd_create("copy", 0);
+        try std.os.dup2(self.ctx.root_file.handle, memfd);
+
+        var file_copy = std.fs.File{ .handle = memfd };
+        try file_copy.seekTo(0);
+        while (true) {
+            const file_bytes = try file_copy.read(&file_buffer);
+            if (file_bytes == 0) {
+                // reached eof?
+                std.debug.warn("eof of file? closing {}\n", .{self.id});
+                self.deinit();
+                break;
+            }
+
+            std.debug.warn("sending {} bytes\n", .{file_bytes});
+
+            const written_bytes = try self.connection.file.write(&file_buffer);
+            if (written_bytes == 0) {
+                std.debug.warn("broke?\n", .{});
+                self.deinit();
+                break;
+            }
+
+            std.time.sleep(1 * std.time.ns_per_s);
+        }
 
         // try to detect when the client closes the connection by reading
         // from the socket in a loop
-        var loop_buffer: [512]u8 = undefined;
-        while (true) {
-            std.debug.warn("keeping {} in readloop\n", .{self.connection.address});
 
-            const loop_bytes = self.connection.file.read(&loop_buffer) catch |err| {
-                std.debug.warn("got error in post-exchange loop: {}\n", .{err});
-                self.deinit();
-                break;
-            };
+        //var loop_buffer: [512]u8 = undefined;
+        //while (true) {
+        //    std.debug.warn("keeping {} in readloop\n", .{self.connection.address});
 
-            if (loop_bytes == 0) {
-                // likely close connection (got it from SIGINT'ing curl)
-                self.deinit();
-                return;
-            }
-        }
+        //    const loop_bytes = self.connection.file.read(&loop_buffer) catch |err| {
+        //        std.debug.warn("got error in post-exchange loop: {}\n", .{err});
+        //        self.deinit();
+        //        break;
+        //    };
+
+        //    if (loop_bytes == 0) {
+        //        // likely close connection (got it from SIGINT'ing curl)
+        //        self.deinit();
+        //        return;
+        //    }
+        //}
     }
 };
