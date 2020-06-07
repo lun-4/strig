@@ -14,16 +14,20 @@ pub const Client = struct {
     }
 
     fn constructReply(self: *@This(), status_code: usize, message: []const u8) ![]const u8 {
-        return try std.fmt.allocPrint(self.allocator, "HTTP/1.1 {}\r\ncontent-type: text/html\r\ncontent-length: {}\r\n\r\n{}", .{ status_code, message.len, message });
+        return try std.fmt.allocPrint(self.allocator, "HTTP/1.1 {}\r\ncontent-type: text/plain\r\ncontent-length: {}\r\n\r\n{}", .{ status_code, message.len, message });
+    }
+
+    fn send(self: *@This(), message: []const u8) !void {
+        const sent_bytes = try self.connection.file.write(message);
+        if (sent_bytes != message.len) {
+            std.debug.warn("Maybe failed to send message! sent {}, expected {}\n", .{ sent_bytes, message.len });
+        }
     }
 
     fn sendResponse(self: *@This(), status_code: usize, message: []const u8) !void {
         const response = try self.constructReply(status_code, message);
         defer self.allocator.free(response);
-        const sent_bytes = try self.connection.file.write(response);
-        if (sent_bytes != response.len) {
-            std.debug.warn("Maybe failed to send reply! sent {}, expected {}\n", .{ sent_bytes, message.len });
-        }
+        try self.send(response);
     }
 
     fn responseIgnoreError(self: *@This(), status_code: usize, message: []const u8) void {
@@ -40,7 +44,7 @@ pub const Client = struct {
     }
 
     pub fn handle(self: *@This()) !void {
-        std.debug.warn("got client!\n", .{});
+        std.debug.warn("got client at {}\n", .{self.connection.address});
         var buf: [512]u8 = undefined;
         const read_bytes = try self.connection.file.read(&buf);
         if (read_bytes == 0) {
@@ -89,7 +93,13 @@ pub const Client = struct {
         // by now, we have a proper http request we can serve. we don't need
         // the rest of the message to make our reply
 
-        std.debug.warn("got msg! '{}'\n", .{msg});
-        self.deinit();
+        std.debug.warn("got right http request from {}\n", .{self.connection.address});
+
+        // send out initial message, the streaming bit is likely managed by
+        // Context? more experiments required
+        try self.send("HTTP/1.1 200\r\n");
+        try self.send("content-type: application/ogg\r\n");
+        try self.send("access-control-allow-origin: *\r\n");
+        try self.send("server: strig\r\n\r\n");
     }
 };
