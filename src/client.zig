@@ -101,5 +101,24 @@ pub const Client = struct {
         try self.send("content-type: application/ogg\r\n");
         try self.send("access-control-allow-origin: *\r\n");
         try self.send("server: strig\r\n\r\n");
+
+        // try to detect when the client closes the connection by reading
+        // from the socket in a loop
+        var loop_buffer: [512]u8 = undefined;
+        while (true) {
+            std.debug.warn("keeping {} in readloop\n", .{self.connection.address});
+
+            const loop_bytes = self.connection.file.read(&loop_buffer) catch |err| {
+                std.debug.warn("got error in post-exchange loop: {}\n", .{err});
+                self.deinit();
+                break;
+            };
+
+            if (loop_bytes == 0) {
+                // likely close connection (got it from SIGINT'ing curl)
+                self.deinit();
+                return;
+            }
+        }
     }
 };
