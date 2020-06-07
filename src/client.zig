@@ -13,14 +13,17 @@ pub const Client = struct {
         self.allocator.destroy(self);
     }
 
-    fn constructReply(self: *@This()) []const u8 {
+    fn constructReply(self: *@This(), status_code: usize, message: []const u8) ![]const u8 {
         return try std.fmt.allocPrint(self.allocator, "HTTP/1.1 {}\r\ncontent-type: text/html\r\ncontent-length: {}\r\n\r\n{}", .{ status_code, message.len, message });
     }
 
     fn sendResponse(self: *@This(), status_code: usize, message: []const u8) !void {
         const response = try self.constructReply(status_code, message);
         defer self.allocator.free(response);
-        try self.connection.file.write(response);
+        const sent_bytes = try self.connection.file.write(response);
+        if (sent_bytes != response.len) {
+            std.debug.warn("Maybe failed to send reply! sent {}, expected {}\n", .{ sent_bytes, message.len });
+        }
     }
 
     fn responseIgnoreError(self: *@This(), status_code: usize, message: []const u8) void {
